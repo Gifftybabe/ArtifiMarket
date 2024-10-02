@@ -1,82 +1,127 @@
-// test/MetaMintMarketplaceTest.ts
+import {
+  loadFixture,
+} from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
-import { ethers } from "hardhat";
-import { MetaMintMarketplace, MetaMintMarketplace__factory } from "../typechain-types";
+import hre from "hardhat";
 
-describe("MetaMintMarketplace", function () {
-  let marketplace: MetaMintMarketplace;
-  let owner: any;
-  let addr1: any;
-  let addr2: any;
+describe("NFTMarketplace", function () {
 
-  beforeEach(async function () {
-    // Deploy the contract
-    const MetaMintMarketplaceFactory: MetaMintMarketplace__factory = await ethers.getContractFactory("MetaMintMarketplace");
-    [owner, addr1, addr2] = await ethers.getSigners();
-    marketplace = await MetaMintMarketplaceFactory.deploy();
+  async function deployNftMarketPlace() {
+    const [owner, otherAccount] = await hre.ethers.getSigners();
+
+    const NftMarketPlace = await hre.ethers.getContractFactory("NFTMarketplace");
+    const nftMarketPlace = await NftMarketPlace.deploy();
+    
+    return { nftMarketPlace, owner, otherAccount };
+  }
+
+  describe("Deployment", function () {
+    it("Should deploy the contract and set the correct owner", async function () {
+      const { nftMarketPlace, owner } = await loadFixture(deployNftMarketPlace);
+
+      expect(await nftMarketPlace.owner()).to.equal(owner.address);
+    });
   });
 
-  it("should allow the owner to mint an NFT", async function () {
-    await marketplace.mintNFT(addr1.address); // Mint to addr1
+  describe("Minting", function () {
+    it("Should allow the owner to mint an NFT", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
 
-    expect(await marketplace.ownerOf(1)).to.equal(addr1.address);
-    expect(await marketplace.nextNFTId()).to.equal(2); // nextNFTId should be incremented
+      // Mint an NFT to otherAccount
+      await expect(nftMarketPlace.mint(otherAccount.address))
+        .to.emit(nftMarketPlace, "Transfer")
+        .withArgs(hre.ethers.AddressZero, otherAccount.address, 1);
+
+      expect(await nftMarketPlace.ownerOf(1)).to.equal(otherAccount.address);
+    });
+
+    it("Should fail to mint if called by a non-owner", async function () {
+      const { nftMarketPlace, otherAccount } = await loadFixture(deployNftMarketPlace);
+
+      await expect(
+        nftMarketPlace.connect(otherAccount).mint(otherAccount.address)
+      ).to.be.revertedWith("Caller is not the owner");
+    });
   });
 
-  it("should allow an NFT owner to list their NFT for sale", async function () {
-    await marketplace.mintNFT(addr1.address); // Mint to addr1
+  describe("Listing for Sale", function () {
+    it("Should allow the owner to list an NFT for sale", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
 
-    // Connect to addr1 and list the NFT for sale
-    await marketplace.connect(addr1).listNFTForSale(1, ethers.parseEther("1"));
+      await nftMarketPlace.mint(otherAccount.address);
 
-    const listing = await marketplace.nftListings(1);
-    expect(listing.seller).to.equal(addr1.address);
-    expect(listing.price).to.equal(ethers.parseEther("1"));
-    expect(listing.isAvailable).to.be.true;
+      await expect(
+        nftMarketPlace.connect(otherAccount).listForSale(1, hre.ethers.parseEther("1"))
+      ).to.emit(nftMarketPlace, "Transfer");
+
+      const listing = await nftMarketPlace.listings(1);
+      expect(listing.isForSale).to.be.true;
+      expect(listing.price).to.equal(hre.ethers.parseEther("1"));
+    });
+
+    it("Should fail to list if not the token owner", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
+
+      await nftMarketPlace.mint(owner.address);
+
+      await expect(
+        nftMarketPlace.connect(otherAccount).listForSale(1, hre.ethers.parseEther("1"))
+      ).to.be.revertedWith("Not the token owner");
+    });
   });
 
-  it("should allow another user to buy a listed NFT", async function () {
-    await marketplace.mintNFT(addr1.address); // Mint to addr1
+  describe("Buying NFTs", function () {
+    it("Should allow someone to buy a listed NFT", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
 
-    // List the NFT for sale by addr1
-    await marketplace.connect(addr1).listNFTForSale(1, ethers.parseEther("1"));
+      await nftMarketPlace.mint(otherAccount.address);
 
-    // addr2 buys the NFT
-    await marketplace.connect(addr2).purchaseNFT(1, { value: ethers.parseEther("1") });
+      await nftMarketPlace.connect(otherAccount).listForSale(1, hre.ethers.parseEther("1"));
 
-    expect(await marketplace.ownerOf(1)).to.equal(addr2.address); // Ownership should be transferred
-    const listing = await marketplace.nftListings(1);
-    expect(listing.isAvailable).to.be.false; // NFT should no longer be for sale
+      await expect(
+        nftMarketPlace.connect(owner).buy(1, { value: hre.ethers.parseEther("1") })
+      ).to.emit(nftMarketPlace, "Transfer");
+
+      expect(await nftMarketPlace.ownerOf(1)).to.equal(owner.address);
+    });
+
+    it("Should fail if the buyer sends insufficient funds", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
+
+      await nftMarketPlace.mint(otherAccount.address);
+
+      await nftMarketPlace.connect(otherAccount).listForSale(1, hre.ethers.parseEther("1"));
+
+      await expect(
+        nftMarketPlace.connect(owner).buy(1, { value: hre.ethers.parseEther("0.5") })
+      ).to.be.revertedWith("Insufficient funds");
+    });
   });
 
-  it("should allow the NFT owner to remove a listing", async function () {
-    await marketplace.mintNFT(addr1.address); // Mint to addr1
+  describe("Withdrawals", function () {
+    it("Should allow the contract owner to withdraw funds", async function () {
+      const { nftMarketPlace, owner, otherAccount } = await loadFixture(deployNftMarketPlace);
 
-    // List the NFT for sale by addr1
-    await marketplace.connect(addr1).listNFTForSale(1, ethers.parseEther("1"));
+      await nftMarketPlace.mint(otherAccount.address);
 
-    // Remove the listing
-    await marketplace.connect(addr1).delistNFT(1);
+      await nftMarketPlace.connect(otherAccount).listForSale(1, hre.ethers.parseEther("1"));
 
-    const listing = await marketplace.nftListings(1);
-    expect(listing.isAvailable).to.be.false; // Listing should no longer be available
-  });
+      await nftMarketPlace.connect(owner).buy(1, { value: hre.ethers.parseEther("1") });
 
-  it("should allow the contract owner to withdraw funds", async function () {
-    await marketplace.mintNFT(addr1.address); // Mint to addr1
-    await marketplace.connect(addr1).listNFTForSale(1, ethers.parseEther("1"));
+      const contractBalanceBefore = await hre.ethers.provider.getBalance(nftMarketPlace);
+      expect(contractBalanceBefore).to.equal(hre.ethers.parseEther("1"));
 
-    // addr2 buys the NFT
-    await marketplace.connect(addr2).purchaseNFT(1, { value: ethers.parseEther("1") });
+      await expect(nftMarketPlace.withdraw())
+        .to.changeEtherBalances([owner, nftMarketPlace], [hre.ethers.parseEther("1"), hre.ethers.parseEther("-1")]);
+    });
 
-    // Contract balance should be 1 ether now
-    const contractBalance = await ethers.provider.getBalance(marketplace);
-    expect(contractBalance).to.equal(ethers.parseEther("1"));
+    it("Should fail if a non-owner tries to withdraw", async function () {
+      const { nftMarketPlace, otherAccount } = await loadFixture(deployNftMarketPlace);
 
-    // Owner withdraws funds
-    await marketplace.withdrawFunds();
-
-    const updatedContractBalance = await ethers.provider.getBalance(marketplace);
-    expect(updatedContractBalance).to.equal(0);
+      await expect(
+        nftMarketPlace.connect(otherAccount).withdraw()
+      ).to.be.revertedWith("Caller is not the owner");
+    });
   });
 });
