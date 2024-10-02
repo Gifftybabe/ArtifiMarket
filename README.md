@@ -1,71 +1,60 @@
-# MetaMintMarketplace
+# NFT Marketplace on Lisk
 
-MetaMintMarketplace is a decentralized NFT marketplace where users can mint, list, buy, and sell NFTs. Built using Solidity and leveraging the ERC-721 standard, this platform allows users to easily trade digital assets on the Ethereum blockchain.
+## Overview
 
-## Features
-
-- **Mint NFTs**: Only the contract owner can mint new NFTs.
-- **List NFTs for Sale**: NFT owners can list their tokens for sale at a specified price.
-- **Buy NFTs**: Anyone can purchase NFTs that are listed for sale by sending the required Ether.
-- **Remove Listings**: NFT owners can remove their tokens from sale.
-- **Withdraw Funds**: The contract owner can withdraw the contract's balance.
-
-## Tech Stack
-
-- **Solidity**: Smart contract programming language.
-- **Hardhat**: Ethereum development environment for compiling, deploying, testing, and debugging.
-- **TypeScript**: Used for writing unit tests.
-- **OpenZeppelin**: Secure and tested contracts, including the ERC-721 token standard and Ownable contract.
-
-## Setup
-
-### Prerequisites
-
-- Node.js
-- npm or yarn
-- Hardhat
-- TypeScript (for testing)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Gifftybabe/MetaMinter.git
-   cd MetaMinter.git
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Compile the contracts:
-   ```bash
-   npx hardhat compile
-   ```
-
-4. Run tests:
-   ```bash
-   npx hardhat test
-   ```
+This project implements a simple NFT (Non-Fungible Token) marketplace smart contract deployed on the Lisk blockchain. The contract allows users to mint, list, buy, and manage NFTs in a decentralized manner.
 
 ## Deployment
 
-1. Update `hardhat.config.ts` with your preferred network and private key.
-2. Deploy the contract:
-   ```bash
-   npx hardhat run scripts/deploy.ts --network <network-name>
-   ```
+The NFT Marketplace contract is deployed on the Lisk blockchain at:
 
-## Usage
+```
+0x3dfe97cabC0F38299E75C87b822aA66Ce2B407Dc
+```
 
-1. **Minting an NFT**: Only the owner of the contract can mint new NFTs.
-2. **Listing for Sale**: After minting, the owner of an NFT can list it for sale by specifying a price in wei.
-3. **Buying an NFT**: Anyone can purchase a listed NFT by sending the required Ether.
-4. **Withdrawing Funds**: The contract owner can withdraw accumulated funds from NFT sales.
+## Features
 
-## Contract Overview
+- Mint NFTs (owner only)
+- List NFTs for sale
+- Buy listed NFTs
+- Remove NFT listings
+- Update listing prices
+- Withdraw contract balance (owner only)
+- Transfer contract ownership
 
-- **MetaMintMarketplace.sol**: The core contract where minting, listing, and buying NFTs take place.
-- **Test**: Contains TypeScript-based tests for contract functionality.
+## Contract Details
 
+- Name: NFTMarketplace
+- Symbol: NFTM
+- Solidity Version: ^0.8.26
+- Base: ERC721 (OpenZeppelin)
+
+## Why Deploy on Lisk?
+
+Lisk offers several advantages for smart contract deployment:
+
+1. **Interoperability**: Seamless cross-chain communication and asset transfers.
+2. **Scalability**: Sidechain architecture for improved performance.
+3. **Developer-Friendly**: Comprehensive tooling and SDKs for easier development.
+4. **Energy Efficiency**: Delegated Proof of Stake (DPoS) consensus mechanism.
+5. **Cost-Effective**: Faster and cheaper transactions compared to many networks.
+6. **Growing Ecosystem**: Opportunities in an expanding network of dApps.
+
+## Getting Started
+
+To interact with the contract:
+1. Connect to the Lisk network
+2. Use web3 libraries or Lisk's SDKs
+3. Reference the contract address provided above
+
+## Security Note
+
+While this contract implements basic functionality, additional security measures may be necessary for production use. Conduct thorough testing and consider professional audits before deploying contracts with real value.
+
+## Contributing
+
+Contributions are welcome. Please submit pull requests or open issues to discuss potential improvements.
+
+## License
+
+This project is licensed under the MIT License.
